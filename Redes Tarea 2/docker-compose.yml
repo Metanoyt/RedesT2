@@ -1,0 +1,25 @@
+version: "3.8"
+
+
+services: 
+  server:
+    build: 
+      context: ./servidor
+      dockerfile: dockerFile
+    container_name: servidor
+    privileged: true
+    restart: on-failure
+    volumes:
+      - ./servidor/launch_files:/home/
+      - ./servidor/init.sh:/init.sh
+    networks:
+      host-bridge:
+
+networks:
+  host-bridge:
+    name: Host bridge
+    driver: bridge
+    driver_opts:
+      parent: eth0
+    ipam:
+      driver: default
