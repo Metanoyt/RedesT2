@@ -6,29 +6,38 @@
 #include <regex.h> 
 #include <stdint.h>
 
-uint8_t* splitter(char* ip){
+// Entradas: String conteniendo un ip en texto,
+		//   entero que representa logisticamente la valides de la ip
+// Salida: Arreglo de uint8_t conteniendo los valores numericos del ip
+uint8_t* splitter(char* ip, int* check){
     char *token = strtok(ip, ".");
 	static uint8_t array[4];
+	int value;
     for (int i = 0; i < 4; i++) {
-    	array[i] = (uint8_t) atoi(token);
-    	// agregar validacion del valor 
-		// ip 255.255.255.255
+    	value = atoi(token);
+    	if(value>255){*check=0;}
+    	array[i] = (uint8_t) value;
         token = strtok(NULL, ".");
     }
     return array;
 }
+
+// Entrada: Arreglo de uint8_t conteniendo los valores numericos de un ip
+// Salida: String del ip a partir de los valores numericos ingresados
 char* reconstruct(uint8_t* array){
 	static char buffer[15];
 	snprintf(buffer, sizeof(buffer), "%u.%u.%u.%u", array[0],array[1],array[2],array[3]);
 	return buffer;
 }
 
-uint8_t* normalizeMask(char* mask){
+// Entrada: String que representa la mascara de bits, ya sea en su forma directa o con su CIDR
+// Salida: Arreglo de uint8_t conteniendo los valores numericos de la mascara de bits
+uint8_t* normalizeMask(char* mask, int* check){
 	static uint8_t array[4];
 	if(mask[0]=='/'){
 		int value = atoi(strtok(mask, "/"));
 		if(value > 32 || value < 8){
-			printf("error mascara de bits no valida");
+			*check = 0;
 		}
     	unsigned int new_mask = ~(0xFFFFFFFF >> value);
     	array[0] = (new_mask & 0xFF000000)>>24;
@@ -38,16 +47,19 @@ uint8_t* normalizeMask(char* mask){
 		return array;
 	}
     char *token = strtok(mask, ".");
+    int value;
     for (int i = 0; i < 4; i++) {
-    	array[i] = (uint8_t) atoi(token);
-    	if(array[i]>255){
-    		printf("Error mascara de bits no valida");
-    	}
+    	value = atoi(token);
+    	array[i] = (uint8_t) value;
+    	if(value>255){*check = 0;}
         token = strtok(NULL, ".");
     }
     return array;
 }
 
+// Entrada: Arreglo de uint8_t conteniendo los valores numericos del ip,
+//			Arreglo de uint8_t conteniendo los valores numericos de la mascara de bits
+// Salida: String del ip de broadcast calculado a partir de la ip y la mascara de bits ingresados
 char* broadcast(uint8_t* ip, uint8_t* mask){
 	for (int i = 4 ; i-- > 0 ; ){
     	ip[i] = ip[i] | ~mask[i];
@@ -55,6 +67,9 @@ char* broadcast(uint8_t* ip, uint8_t* mask){
 	return reconstruct(ip);
 }
 
+// Entrada: Arreglo de uint8_t conteniendo los valores numericos del ip,
+//			Arreglo de uint8_t conteniendo los valores numericos de la mascara de bits
+// Salida: String del ip de network calculado a partir de la ip y la mascara de bits ingresados
 char* network(uint8_t* ip, uint8_t* mask){
 	for (int i = 4 ; i-- > 0 ; ){
     	ip[i] = ip[i] & mask[i];
@@ -62,14 +77,38 @@ char* network(uint8_t* ip, uint8_t* mask){
 	return reconstruct(ip);
 }
 
-//char* hostrange(){}
+// Entrada: Arreglo de uint8_t conteniendo los valores numericos del ip,
+//			Arreglo de uint8_t conteniendo los valores numericos de la mascara de bits
+// Salida: String del ip de broadcast calculado a partir de la ip y la mascara de bits ingresados
+char* hostrange(uint8_t* ip, uint8_t* mask){
+	static char buffer[36];
+	char byte[9];
+	for(int i=0; i < 4; i++){
+		if((ip[i] & ~mask[i]) > 0){
+			snprintf(byte, 9, "{1-%u}.", ~mask[i] & 254);
+		}
+		else{
+			snprintf(byte, 9, "%u.", ip[i]);
+		}
+		strcat(buffer,byte);
+	}
+	return buffer;
+}
 
 //char* randomhostname(){}
+
+// Entrada: Socket del cliente encontrado
+// Comportamiento: La funcion va a leer el socket recibido,
+//				   validara el contenido de ese socket utilizando para saber si la solicitud tiene un formato y valores correctos
+// 				   escribe el calculo esperado de la solicitud en el socket del cliente.
 char* handleMsg(char* msg){
 	regex_t regex;
-	static char* response ="Funcionalidad no implementada o error inesperado";
+	char* response ="Funcionalidad no implementada o error inesperado\n";
 	char* mask;
 	char* ip;
+	int validIp = 1;
+	int validMask = 1;
+	
 	
 	regcomp(&regex,"^GET (BROADCAST|NETWORK NUMBER|HOSTS RANGE) IP ([0-9]{1,3}[.]){3}[0-9]{1,3} MASK (([0-9]{1,3}[.]){3}[0-9]{1,3}|/[0-9]{1,2})",REG_EXTENDED);
 	if (regexec(&regex, msg, 0, NULL, 0) == 0){
@@ -80,11 +119,13 @@ char* handleMsg(char* msg){
 		ip = strtok(NULL, " "); strtok(NULL," "); 
 		mask = strtok(NULL," ");
 		//printf("Found ip and mask  %s x %s\n",ip,mask);
-    	uint8_t* n_ip = splitter(ip);
-		uint8_t* n_mask = normalizeMask(mask);
+    	uint8_t* n_ip = splitter(ip, &validIp);
+    	if(validIp == 0){response = "ip invalida\n";return response;}
+		uint8_t* n_mask = normalizeMask(mask, &validMask);
+		if(validMask == 0){response = "mascara invalida\n";return response;}
     	switch(strcmp("HOSTS",type)){
     		case 0:
-    			//printf("es host\n");
+    			response = hostrange(n_ip,n_mask);
     			break;
     		case 1:
     			response = broadcast(n_ip,n_mask);
@@ -92,12 +133,10 @@ char* handleMsg(char* msg){
     		default:
     			response = network(n_ip,n_mask);
     	}
-    	//printf(response);
     	return response;
 	}
 	regcomp(&regex,"^GET RANDOM SUBNETS NETWORK NUMBER ([0-9]{1,3}[.]){3}[0-9]{1,3} MASK /[0-9]{1,2} NUMBER [0-9]{1,2} SIZE /[0-9]{1,2}",REG_EXTENDED);
 	if (regexec(&regex, msg, 0, NULL, 0) == 0){
-    	//printf("Pattern 2 found.\n");
     	char* token = strtok(msg, " ");
     	char* number;
     	char* size;
@@ -106,13 +145,11 @@ char* handleMsg(char* msg){
 		mask = strtok(NULL," "); strtok(NULL," "); 
 		number = strtok(NULL," "); strtok(NULL," "); 
 		size = strtok(NULL," ");
-		//printf("Found ip mask numb size %s x %s x %s %s",ip,mask,number,size);
     	
     	return response;
 	}
-    //printf("Formato invalido\n");
-	char* no_format ="Funcionalidad no implementada o error inesperado";
-	return no_format;
+    response = "Formato invalido\n";
+    return response;
 }
 
 
@@ -122,11 +159,8 @@ int main(int argc, char const *argv[]) {
   int serverFd, clientFd;
   struct sockaddr_in server, client;
   int len;
-  int port = 1234;
+  int port = 9666;
   char buffer[1024];
-  if (argc == 2) {
-    port = atoi(argv[1]);
-  }
   serverFd = socket(AF_INET, SOCK_STREAM, 0);
   if (serverFd < 0) {
     perror("Cannot create socket");
@@ -136,6 +170,9 @@ int main(int argc, char const *argv[]) {
   server.sin_addr.s_addr = INADDR_ANY;
   server.sin_port = htons(port);
   len = sizeof(server);
+  
+  int activado = 1;
+  setsockopt(serverFd, SOL_SOCKET, SO_REUSEADDR, &activado, sizeof(activado));
   if (bind(serverFd, (struct sockaddr *)&server, len) < 0) {
     perror("Cannot bind sokcet");
     exit(2);
@@ -160,9 +197,7 @@ int main(int argc, char const *argv[]) {
       exit(5);
     }
     printf("received %s from client\n", buffer);
-	buffer = handleMessage(buffer);
-
-    if (write(clientFd, buffer, size) < 0) {
+    if (write(clientFd, handleMsg(buffer), size) < 0) {
       perror("write error");
       exit(6);
     }

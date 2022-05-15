@@ -9,9 +9,11 @@ services:
     container_name: servidor
     privileged: true
     restart: on-failure
+    ports:
+      - "9666:9666/tcp"
     volumes:
       - ./servidor/launch_files:/home/
-      - ./servidor/init.sh:/init.sh
+      - ./servidor/launch_files/init.sh:/home/init.sh
     networks:
       host-bridge:
 

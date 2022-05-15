@@ -5,7 +5,8 @@ RUN su
 
 RUN apt-get update && \
      apt-get upgrade -y &&\
-     apt-get install -y gcc
+     apt-get install -y gcc &&\
+     apt-get install -y make
 
 
-ENTRYPOINT [ "/bin/sh","init.sh" ]
+ENTRYPOINT ["/home/init.sh","init.sh"]
