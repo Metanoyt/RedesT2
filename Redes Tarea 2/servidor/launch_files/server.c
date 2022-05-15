@@ -26,7 +26,7 @@ uint8_t* splitter(char* ip, int* check){
 // Salida: String del ip a partir de los valores numericos ingresados
 char* reconstruct(uint8_t* array){
 	static char buffer[15];
-	snprintf(buffer, sizeof(buffer), "%u.%u.%u.%u", array[0],array[1],array[2],array[3]);
+	snprintf(buffer, sizeof(buffer), "%u.%u.%u.%u\n", array[0],array[1],array[2],array[3]);
 	return buffer;
 }
 
@@ -34,6 +34,15 @@ char* reconstruct(uint8_t* array){
 // Salida: Arreglo de uint8_t conteniendo los valores numericos de la mascara de bits
 uint8_t* normalizeMask(char* mask, int* check){
 	static uint8_t array[4];
+
+	int str_len = strlen(mask);
+	if (mask[str_len - 1] == '\n') {
+			mask[str_len - 1] = '\0';
+	}
+	str_len = strlen(mask);
+	if (mask[str_len - 1] == '\r') {
+			mask[str_len - 1] = '\0';
+	}
 	if(mask[0]=='/'){
 		int value = atoi(strtok(mask, "/"));
 		if(value > 32 || value < 8){
@@ -95,17 +104,17 @@ char* hostrange(uint8_t* ip, uint8_t* mask){
 	return buffer;
 }
 
-//char* randomhostname(){}
-
 // Entrada: Socket del cliente encontrado
 // Comportamiento: La funcion va a leer el socket recibido,
 //				   validara el contenido de ese socket utilizando para saber si la solicitud tiene un formato y valores correctos
 // 				   escribe el calculo esperado de la solicitud en el socket del cliente.
-char* handleMsg(char* msg){
+const char*  handleMsg(char* msg){
 	regex_t regex;
-	char* response ="Funcionalidad no implementada o error inesperado\n";
-	char* mask;
-	char* ip;
+	static char response[1024];
+	strcpy(response,"Funcionalidad no implementada\n");
+	memset(response, 0, sizeof(response));
+	char* mask = (char *) malloc(sizeof(char)*20);
+	char* ip = (char *) malloc(sizeof(char)*20);
 	int validIp = 1;
 	int validMask = 1;
 	
@@ -120,18 +129,18 @@ char* handleMsg(char* msg){
 		mask = strtok(NULL," ");
 		//printf("Found ip and mask  %s x %s\n",ip,mask);
     	uint8_t* n_ip = splitter(ip, &validIp);
-    	if(validIp == 0){response = "ip invalida\n";return response;}
+    	if(validIp == 0){strcpy(response,"ip invalida\n");return response;}
 		uint8_t* n_mask = normalizeMask(mask, &validMask);
-		if(validMask == 0){response = "mascara invalida\n";return response;}
+		if(validMask == 0){strcpy(response, "mascara invalida\n");return response;}
     	switch(strcmp("HOSTS",type)){
     		case 0:
-    			response = hostrange(n_ip,n_mask);
+				strcpy(response, hostrange(n_ip,n_mask));
     			break;
     		case 1:
-    			response = broadcast(n_ip,n_mask);
+				strcpy(response,broadcast(n_ip,n_mask));
     			break;
     		default:
-    			response = network(n_ip,n_mask);
+    			strcpy(response, network(n_ip,n_mask));
     	}
     	return response;
 	}
@@ -148,7 +157,7 @@ char* handleMsg(char* msg){
     	
     	return response;
 	}
-    response = "Formato invalido\n";
+	strcpy(response,"Formato invalido\n");
     return response;
 }
 
@@ -201,6 +210,7 @@ int main(int argc, char const *argv[]) {
       perror("write error");
       exit(6);
     }
+	memset(buffer, 0, sizeof(buffer));
     close(clientFd);
   }
   close(serverFd);

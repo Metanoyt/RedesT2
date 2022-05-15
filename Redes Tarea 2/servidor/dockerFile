@@ -6,7 +6,8 @@ RUN su
 RUN apt-get update && \
      apt-get upgrade -y &&\
      apt-get install -y gcc &&\
-     apt-get install -y make
+     apt-get install -y make &&\
+     apt-get install -y telnet
 
 
 ENTRYPOINT ["/home/init.sh","init.sh"]

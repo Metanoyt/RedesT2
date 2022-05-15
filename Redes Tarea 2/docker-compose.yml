@@ -10,7 +10,7 @@ services:
     privileged: true
     restart: on-failure
     ports:
-      - "9666:9666/tcp"
+      - "9666:9666"
     volumes:
       - ./servidor/launch_files:/home/
       - ./servidor/launch_files/init.sh:/home/init.sh

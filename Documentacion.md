@@ -90,17 +90,22 @@
 
 ### Servidor ubuntu
 
+Para la automatización de ubuntu se crea un contenedor con una imagen de ubuntu, operando bajo una red de tipo bride bajo el puerto 9666, después de inicializada en el contenedor se instalan las bibliotecas de gcc y make para inicializar el servidor.  
+
 ### Operaciones
 
 #### Broadcast
 
+Una vez se tiene un arreglo de 4 bytes que representa el valor numérico de la ip de entrada, es posible calcular la ip de broadcast para la red simbólica de la misma ip, esta ip de broadcast consiste en el valor más alto posible que puede alcanzar bajo las restricciones dadas por su máscara de bits, para calcularla se puede aplicar un operador bitwise "or" con la negación "~" de la máscara de bits.
+
 #### Network Number
+
+Para calcular el número de red para una combinación de ip y máscara se aplica un operador bitwise de tipo AND "&"  entre los dos.
 
 #### Host range
 
-#### Random subnet network number
-
-### Control de hilos
+Para calcular un rango de IPs posibles a quienes "hostear", se debe encontrar el valor que no tengan conflicto con la máscara de red en cada byte de la ip, para esto se puede utilizar el conjunto de operaciones de "Ip & ~ mask" si el valor resultante de esta operación es mayor a 0 significa que es posible usar al menos una combinación de bits para asignarla a un huésped, para encontrar el valor máximo disponible para cada byte sin tener conflicto con el ip de broadcast se puede aplicar la operación
+"~mask[i] & 254" sobre el byte i de la máscara de bits, al hacerlo encontramos el mayor número que no tiene conflicto con la máscara de red y el aplicar el operador "and" con el valor 254 nos asegura que el valor no será mayor a 254 osease 255.  
 
 ## Referencias
 
